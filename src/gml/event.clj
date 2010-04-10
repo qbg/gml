@@ -7,8 +7,6 @@
   [manager obj name]
   (let [al (reify
 	    ActionListener
-	    (actionPerformed
-	     [_]
+	    (actionPerformed [this e]
 	     (invoke-event manager name [:action])))]
     (.addActionListener obj al)))
-

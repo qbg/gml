@@ -1,5 +1,6 @@
 (ns gml.widget
-  (:import [javax.swing JPanel BoxLayout JButton JLabel JFrame])
+  (:import [javax.swing JPanel BoxLayout JButton JLabel JFrame]
+	   [java.awt Dimension])
   (:use [gml.manager :only [register-component create-manager]]
 	gml.event))
 
@@ -47,6 +48,7 @@
   (let [b (JButton. text)
 	name (:name options)]
     (.setAlignmentX b 0.5)
+    (.setMaximumSize b (Dimension. Short/MAX_VALUE Short/MAX_VALUE))
     (register-component manager name b)
     (register-actionlistener manager b name)
     (run-extra manager b options)
@@ -72,8 +74,16 @@
       .show)
     jframe))
 
+(def widgets
+     (atom {:vertical #'vertical*,
+	    :horizontal #'horizontal*,
+	    :window #'window*,
+	    :button #'button*,
+	    :label #'label*}))
+
 (defn construct-gui
   "Create a gui in a manager"
   [manager gml]
-  (let [[constructor options & children] gml]
-    (apply constructor manager options children)))
+  (let [[name options & children] gml]
+    (-> (or (@widgets name) (constantly nil))
+	(apply manager options children))))
