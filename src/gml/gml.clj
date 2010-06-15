@@ -11,6 +11,7 @@
   (.model gui))
 
 (defn- perform-updates
+  "Update all dynamic properties in gui to reflect its model"
   [gui]
   (let [model @(.model gui)]
     (EventQueue/invokeLater
@@ -22,10 +23,9 @@
   (let [model (.model gui)]
     (add-watch model ::updater (fn [_ _ _ _] (perform-updates gui)))))
 
-(declare components)
-(declare getters)
-(declare setters)
-
+(declare ^{:private true} components)
+(declare ^{:private true} getters)
+(declare ^{:private true} setters)
 (declare ^{:private true} *gui*)
 (declare ^{:private true} *update-list*)
 (declare ^{:private true} *names*)
@@ -90,7 +90,7 @@ property"
     component))
 
 (defn make-gui
-  "Create a gui with a given initial model from the description in form"
+  "Create a gui with a given model from the description in form"
   [model form]
   (binding [*gui* (atom nil)
 	    *update-list* (atom nil)
