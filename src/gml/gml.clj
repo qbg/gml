@@ -26,28 +26,18 @@
 (declare getters)
 (declare setters)
 
-(declare ^{:private true} build-component)
+(declare ^{:private true} *gui*)
+(declare ^{:private true} *update-list*)
+(declare ^{:private true} *names*)
 
 (defn- make-component
   [type children props]
   ((components type) children props))
   
-(defn- construct-children
-  [gui children]
-  (reduce (fn [[comps list names] form]
-	    (let [[c l n] (build-component gui form)]
-	      [(conj comps c) (concat list l) (merge names n)]))
-	  [[] nil {}]
-	  children))  
-
 (defn- add-children
   [component children]
   (doseq [c children]
     (.add component c)))
-
-(defn- remove-actions
-  [props]
-  (dissoc props :action :name))
 
 (defn- set-prop
   [component prop val]
@@ -73,55 +63,43 @@ property"
 
 (defn- set-props
   [component props]
-  (let [props (remove-actions props)]
-    (loop [props props, ul nil]
-      (if-let [[[prop val] & props] (seq props)]
-	(if (fn? val)
-	  (recur props (conj ul #(set-prop component prop (val %))))
-	  (do
-	    (set-prop component prop val)
-	    (recur props ul)))
-	ul))))
+  (doseq [[prop val] (seq props)]
+    (if (fn? val)
+      (swap! *update-list* conj #(set-prop component prop (val %)))
+      (set-prop component prop val))))
 
 (defn- add-listener
-  [component gui props]
-  (let [action (:action props)
+  [component f]
+  (let [gui *gui*
 	al
 	(reify
 	 ActionListener
 	 (actionPerformed [_ e]
 	   (let [source (.getSource e)]
-	     (action @gui))))]
-    (if action
+	     (f @gui))))]
+    (if f
       (.addActionListener component al))))
 
-(defn- mapify
-  [kvs]
-  (apply hash-map kvs))
-
 (defn- build-component
-  "Takes a gui atom and a form and returns a vector of the component and a
-list of any update functions"
-  [gui form]
-  (let [[type props & children] form
-	props (mapify props)
-	[child-components update-list names] (construct-children gui children)
-	[component ul]
-	(make-component type child-components (remove-actions props))
-	names (assoc names (:name props) component)
-	update-list (concat update-list ul)]
-    (add-listener component gui props)
-    [component update-list names]))
+  "Takes a gui atom and a form and returns the component"
+  [form]
+  (let [[type props & children-forms] form
+	children (doall (map build-component children-forms))
+	component (make-component type children (dissoc props :name))]
+    (swap! *names* assoc (:name props) component)
+    component))
 
 (defn make-gui
   "Create a gui with a given initial model from the description in form"
   [model form]
-  (let [guiref (atom nil)
-	[root ul names] (build-component guiref form)]
-    (.show root)
-    (let [gui (reset! guiref (Gui. model ul names root))]
+  (binding [*gui* (atom nil)
+	    *update-list* (atom nil)
+	    *names* (atom {})]
+    (let [root (build-component form)
+	  gui (reset! *gui* (Gui. model @*update-list* @*names* root))]
       (perform-updates gui)
       (install-watch gui)
+      (.show root)
       gui)))
 
 (defn- color
@@ -152,25 +130,24 @@ list of any update functions"
 (defn- build-standard
   [ctor]
   (fn [children props]
-    (let [comp (ctor)
-	  ul (set-props comp props)]
-      (doseq [c children]
-	(.add comp c))
-      [comp ul])))
+    (let [comp (ctor)]
+      (set-props comp (dissoc props :action))
+      (add-listener comp (:action props))
+      (add-children comp children)
+      comp)))
 
 (defn- build-layout
   [ctor]
   (fn [children props]
-    (let [layout-props (mapify (:layout props))
+    (let [layout-props (:layout props)
 	  layout (ctor)
 	  props (dissoc props :layout)
-	  panel (javax.swing.JPanel.)
-	  ul (concat (set-props layout layout-props)
-		     (set-props panel props))]
+	  panel (javax.swing.JPanel.)]
+      (set-props layout layout-props)
+      (set-props panel props)
       (.setLayout panel layout)
-      (doseq [c children]
-	(.add panel c))
-      [panel ul])))
+      (add-children panel children)
+      panel)))
 
 (defn- close-op
   [op]
