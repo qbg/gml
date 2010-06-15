@@ -1,8 +1,9 @@
 # gml
 
-GUI Markup Language for Clojure.  Eases the creation of simple Swing GUIs by
-allowing the user express the layout in s-exps and add listeners by naming the
-component and the event type.
+gml eases the creation of simple Swing GUIs in Clojure by providing a
+declarative wrapper around Swing.  It strongly encourages MVC design and
+integrates with Clojure's notion of process.  GUIs are described in a
+style similar to XML using Clojure's syntax.
 
 ## Usage
 

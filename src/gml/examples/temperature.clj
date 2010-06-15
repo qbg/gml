@@ -1,4 +1,4 @@
-(ns gml.temperature
+(ns gml.examples.temperature
   (:require [gml.gml :as gml]))
 
 (defn- parse-double
